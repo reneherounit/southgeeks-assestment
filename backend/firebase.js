@@ -1,14 +1,5 @@
 import { initializeApp } from "firebase/app";
-import {
-  getDatabase,
-  ref,
-  push,
-  set,
-  get,
-  update,
-  remove,
-  child
-} from "firebase/database";
+import { getDatabase, ref, push, set, update, get, child } from "firebase/database";
 
 const {
   FIREBASE_API_KEY,
@@ -33,17 +24,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-export async function listUsers() {
-  const snap = await get(ref(db, "users"));
-  const val = snap.val() || {};
-  return Object.values(val);
-}
-
-export async function getUser(id) {
-  const snap = await get(child(ref(db), `users/${id}`));
-  return snap.val();
-}
-
 export async function createUser(data) {
   const usersRef = ref(db, "users");
   const newRef = push(usersRef);
@@ -55,10 +35,6 @@ export async function createUser(data) {
 
 export async function updateUser(id, patch) {
   await update(ref(db, `users/${id}`), patch);
-  return getUser(id);
-}
-
-export async function deleteUser(id) {
-  await remove(ref(db, `users/${id}`));
-  return { ok: true };
+  const snap = await get(child(ref(db), `users/${id}`));
+  return snap.val();
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { db, ref, onValue, remove } from "./firebase";
 
 const API_BASE = "http://localhost:8080";
 
@@ -8,14 +9,18 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function fetchUsers() {
-    const res = await fetch(`${API_BASE}/users`);
-    const data = await res.json();
-    setUsers(Array.isArray(data) ? data : []);
-  }
-
   useEffect(() => {
-    fetchUsers();
+    const usersRef = ref(db, "users");
+    const unsubscribe = onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setUsers(Object.values(data));
+      } else {
+        setUsers([]);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   async function handleCreate(e) {
@@ -34,7 +39,6 @@ export default function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Create failed");
       setForm(f => ({ ...f, name: "", zip: "" }));
-      await fetchUsers();
     } catch (err) {
       setError(err.message || "Error creating user");
     } finally {
@@ -53,13 +57,15 @@ export default function App() {
       alert(data?.error || "Update failed");
       return;
     }
-    await fetchUsers();
   }
 
   async function handleDelete(id) {
     if (!confirm("Delete this user?")) return;
-    const res = await fetch(`${API_BASE}/users/${id}`, { method: "DELETE" });
-    if (res.ok) fetchUsers();
+    try {
+      await remove(ref(db, `users/${id}`));
+    } catch (err) {
+      alert("Failed to delete user");
+    }
   }
 
   return (
