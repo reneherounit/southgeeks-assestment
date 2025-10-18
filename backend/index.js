@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
+import { geocodeByZip } from "./services/openWeather.js";
 
 import {
   listUsers,
@@ -37,11 +38,13 @@ app.get("/users/:id", async (req, res) => {
 
 app.post("/users", async (req, res) => {
   try {
-    const { name, zip } = req.body || {};
+    const { name, zip, country = "US" } = req.body || {};
     if (!name || !zip) {
       return res.status(400).json({ error: "name and zip are required" });
     }
-    const created = await createUser({ name, zip });
+
+    const geo = await geocodeByZip(zip, country);
+    const created = await createUser({ name, zip, ...geo });
     res.status(201).json(created);
   } catch (e) {
     res.status(400).json({ error: e.message || "Failed to create user" });
@@ -50,11 +53,20 @@ app.post("/users", async (req, res) => {
 
 app.put("/users/:id", async (req, res) => {
   try {
-    const { name, zip } = req.body || {};
+    const { name, zip, country = "US" } = req.body || {};
     if (!name && !zip) {
       return res.status(400).json({ error: "nothing to update" });
     }
-    const updated = await updateUser(req.params.id, { ...(name && { name }), ...(zip && { zip }) });
+
+    let patch = {};
+    if (name) patch.name = name;
+    if (zip) {
+      patch.zip = zip;
+      const geo = await geocodeByZip(zip, country);
+      patch = { ...patch, ...geo };
+    }
+
+    const updated = await updateUser(req.params.id, patch);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
   } catch (e) {
